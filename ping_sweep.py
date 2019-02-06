@@ -1,7 +1,16 @@
 #!/usr/bin/python3
 
 import multiprocessing
-import argparse, sys
+import argparse, sys, ctypes
+from os import getuid
+try:
+    is_admin = getuid() == 0
+except AttributeError:
+    is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+
+if not is_admin:
+    print('This program requires root/administrator privileges.')
+    sys.exit()
 import platform as plat
 from scapy.all import *
 MAX_PROCESSES = 20
@@ -9,6 +18,10 @@ if plat.system() != 'Windows':
     conf.L3socket = L3RawSocket
     MAX_PROCESSES = 200
 from socket import inet_aton
+
+if not is_admin:
+    print('This program requires root/administrator privileges.')
+    sys.exit()
 
 def ping(jobs, results, is_sorted=False, attempts=1, timeout=1):
     while True:
@@ -18,7 +31,11 @@ def ping(jobs, results, is_sorted=False, attempts=1, timeout=1):
 
         for attempt in range(attempts):
             packet = IP(dst=ip, ttl=20)/ICMP()
-            reply = sr1(packet, timeout=timeout, verbose=False)
+            try:
+                reply = sr1(packet, timeout=timeout, verbose=False)
+            except Exception as e:
+                print('Error sending ping to address: {}'.format(ip))
+                return
             if reply is not None:
                 if not is_sorted:
                     print(ip)
