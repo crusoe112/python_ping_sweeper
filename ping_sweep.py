@@ -1,12 +1,14 @@
 #!/usr/bin/python3
 
 import multiprocessing
-from scapy.all import *
-conf.L3socket = L3RawSocket
 import argparse, sys
+import platform as plat
+from scapy.all import *
+MAX_PROCESSES = 20
+if plat.system() != 'Windows':
+    conf.L3socket = L3RawSocket
+    MAX_PROCESSES = 200
 from socket import inet_aton
-
-MAX_PROCESSES = 200
 
 def ping(jobs, results, is_sorted=False, attempts=1, timeout=1):
     while True:
@@ -62,20 +64,25 @@ def main(args):
                                                        timeout))
             for i in range(pool_size)]
 
+    #print('Adding jobs to the queue...')
     for i in range(start, end+1):
         jobs.put('{}.{}'.format(domain, i))
 
+    #print('Starting processes...')
     for proc in pool:
         proc.start()
 
+    #print('Waiting for processes to finish...')
     for proc in pool:
         jobs.put(None)
 
+    #print('Joining processes...')
     for proc in pool:
         proc.join()
 
     ip_list = []
 
+    #print('Getting results...')
     while not results.empty():
         ip_list.append(results.get())
 
